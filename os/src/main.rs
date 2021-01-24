@@ -13,6 +13,7 @@ extern crate bitflags;
 
 #[macro_use]
 mod console;
+mod cpu;
 mod lang_items;
 mod sbi;
 mod syscall;
@@ -37,18 +38,39 @@ fn clear_bss() {
     });
 }
 
+const BOOT_HART_ID: usize = 0;
+
 #[no_mangle]
-pub fn rust_main() -> ! {
-    clear_bss();
-    println!("[kernel] Hello, world!");
-    mm::init();
-    mm::remap_test();
-    task::add_initproc();
-    println!("after initproc!");
+pub fn rust_main(hartid: usize, _device_tree_paddr: usize) -> ! {
+    unsafe {
+        cpu::set_cpu_id(hartid);
+    }
+    if hartid == BOOT_HART_ID {
+        clear_bss();
+        info!("Hello, world!");
+        mm::init();
+        mm::remap_test();
+        task::add_initproc();
+        info!("after initproc!");
+        trap::init();
+        trap::enable_timer_interrupt();
+        timer::set_next_trigger();
+        loader::list_apps();
+        cpu::broadcast_ipi(); // wake other core
+        task::run_tasks();
+        panic!("Unreachable in rust_main!");
+    } else {
+        others_main(hartid);
+    }
+}
+
+fn others_main(hartid: usize) -> ! {
+    info!("Hello RISCV! in hart {}", hartid);
     trap::init();
+    crate::mm::KERNEL_SPACE.clone().lock().activate();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
-    loader::list_apps();
     task::run_tasks();
-    panic!("Unreachable in rust_main!");
+    // loop {}
+    panic!("Unreachable in other_main!");
 }

@@ -10,6 +10,7 @@ DISASM_TMP := target/$(TARGET)/$(MODE)/asm
 BOARD		?= qemu
 SBI			?= rustsbi
 BOOTLOADER	:= ../bootloader/$(SBI)-$(BOARD).bin
+SMP			?= 2
 
 # Run K210
 K210-SERIALPORT	= /dev/ttyUSB0
@@ -22,7 +23,13 @@ OBJCOPY := rust-objcopy --binary-architecture=riscv64
 # Disassembly
 DISASM ?= -x
 
-build: $(KERNEL_BIN)
+build: env $(KERNEL_BIN)
+
+env:
+	(rustup component list | grep "rust-src") || rustup component add rust-src
+	(rustup component list | grep "llvm-tools-preview") || rustup component add llvm-tools-preview
+	(which rust-objdump) || cargo install cargo-binutils
+	(rustup target list | grep "riscv64gc-unknown-none-elf") || rustup target add riscv64gc-unknown-none-elf
 
 $(KERNEL_BIN): kernel
 	@$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $@
@@ -50,14 +57,15 @@ ifeq ($(BOARD),qemu)
 		-machine virt \
 		-nographic \
 		-bios $(BOOTLOADER) \
-		-device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)
+		-device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA) \
+		-smp $(SMP)
 else
 	@cp $(BOOTLOADER) $(BOOTLOADER).copy
-	@dd if=$(KERNEL_BIN) of=$(BOOTLOADER).copy bs=128K seek=1
+	@dd if=$(KERNEL_BIN) of=$(BOOTLOADER).copy bs=131072 seek=1
 	@mv $(BOOTLOADER).copy $(KERNEL_BIN)
 	@sudo chmod 777 $(K210-SERIALPORT)
 	python3 $(K210-BURNER) -p $(K210-SERIALPORT) -b 1500000 $(KERNEL_BIN)
-	miniterm --eol LF --dtr 0 --rts 0 --filter direct $(K210-SERIALPORT) 115200
+	python3 -m serial.tools.miniterm --eol LF --dtr 0 --rts 0 --filter direct $(K210-SERIALPORT) 115200
 endif
 
 debug: build
@@ -66,4 +74,4 @@ debug: build
 		tmux split-window -h "riscv64-unknown-elf-gdb -ex 'file $(KERNEL_ELF)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'" && \
 		tmux -2 attach-session -d
 
-.PHONY: build kernel clean disasm disasm-vim run-inner
+.PHONY: build env kernel clean disasm disasm-vim run-inner
