@@ -10,6 +10,7 @@ DISASM_TMP := target/$(TARGET)/$(MODE)/asm
 BOARD		?= qemu
 SBI			?= rustsbi
 BOOTLOADER	:= ../bootloader/$(SBI)-$(BOARD).bin
+SMP			?= 2
 
 # Run K210
 K210-SERIALPORT	= /dev/ttyUSB0
@@ -50,7 +51,8 @@ ifeq ($(BOARD),qemu)
 		-machine virt \
 		-nographic \
 		-bios $(BOOTLOADER) \
-		-device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)
+		-device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA) \
+		-smp $(SMP)
 else
 	@cp $(BOOTLOADER) $(BOOTLOADER).copy
 	@dd if=$(KERNEL_BIN) of=$(BOOTLOADER).copy bs=128K seek=1

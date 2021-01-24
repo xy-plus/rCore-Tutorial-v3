@@ -1,5 +1,7 @@
 use core::fmt::{self, Write};
 use crate::sbi::console_putchar;
+use lazy_static::*;
+use spin::Mutex;
 
 struct Stdout;
 
@@ -12,8 +14,12 @@ impl Write for Stdout {
     }
 }
 
+lazy_static! {
+    static ref STDOUT: Mutex<Stdout> = Mutex::new(Stdout);
+}
+
 pub fn print(args: fmt::Arguments) {
-    Stdout.write_fmt(args).unwrap();
+    STDOUT.lock().write_fmt(args).unwrap();
 }
 
 #[macro_export]
@@ -30,4 +36,10 @@ macro_rules! println {
     }
 }
 
-
+#[macro_export]
+macro_rules! info {
+    ($fmt: literal $(, $($arg: tt)+)?) => {
+        use core::fmt::*;
+        $crate::console::print(format_args!(concat!("[info({})] ", $fmt, "\n"), crate::cpu::id() $(, $($arg)+)?));
+    }
+}
