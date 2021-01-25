@@ -56,20 +56,22 @@ impl Processor {
     }
 }
 
+const MAX_CPU_NUM: usize = 2;
+
 lazy_static! {
-    pub static ref PROCESSOR: Processor = Processor::new();
+    pub static ref PROCESSORS: [Processor; MAX_CPU_NUM] = [Processor::new(), Processor::new()];
 }
 
 pub fn run_tasks() {
-    PROCESSOR.run();
+    PROCESSORS[crate::cpu::id()].run();
 }
 
 pub fn take_current_task() -> Option<Arc<TaskControlBlock>> {
-    PROCESSOR.take_current()
+    PROCESSORS[crate::cpu::id()].take_current()
 }
 
 pub fn current_task() -> Option<Arc<TaskControlBlock>> {
-    PROCESSOR.current()
+    PROCESSORS[crate::cpu::id()].current()
 }
 
 pub fn current_user_token() -> usize {
@@ -83,7 +85,7 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
 }
 
 pub fn schedule(switched_task_cx_ptr2: *const usize) {
-    let idle_task_cx_ptr2 = PROCESSOR.get_idle_task_cx_ptr2();
+    let idle_task_cx_ptr2 = PROCESSORS[crate::cpu::id()].get_idle_task_cx_ptr2();
     unsafe {
         __switch(
             switched_task_cx_ptr2,

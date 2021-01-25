@@ -13,6 +13,7 @@ APPS := ../user/src/bin
 BOARD		?= qemu
 SBI			?= rustsbi
 BOOTLOADER	:= ../bootloader/$(SBI)-$(BOARD).bin
+SMP			?= 2
 
 # Run K210
 K210-SERIALPORT	= /dev/ttyUSB0
@@ -39,7 +40,7 @@ sdcard: $(FS_IMG)
 	@sudo dd if=$(FS_IMG) of=$(SDCARD)
 
 $(KERNEL_BIN): kernel
-	@$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $@
+	$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $@
 
 $(FS_IMG): $(APPS)
 	@cd ../user && make build
@@ -71,7 +72,8 @@ ifeq ($(BOARD),qemu)
 		-bios $(BOOTLOADER) \
 		-device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA) \
 		-drive file=$(FS_IMG),if=none,format=raw,id=x0 \
-        -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+        -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
+		-smp $(SMP)
 else
 	@cp $(BOOTLOADER) $(BOOTLOADER).copy
 	@dd if=$(KERNEL_BIN) of=$(BOOTLOADER).copy bs=131072 seek=1
