@@ -3,6 +3,7 @@ mod switch;
 mod task;
 
 use crate::loader::{get_app_data, get_num_app};
+use crate::mm::{MapArea, MapPermission, MapType};
 use crate::trap::TrapContext;
 use alloc::vec::Vec;
 use core::cell::RefCell;
@@ -83,6 +84,36 @@ impl TaskManager {
         let inner = self.inner.borrow();
         let current = inner.current_task;
         inner.tasks[current].get_trap_cx()
+    }
+
+    pub fn mmap(&self, start: usize, len: usize, prot: usize) -> isize {
+        let current = self.inner.borrow().current_task;
+        let memory_set = &mut self.inner.borrow_mut().tasks[current].memory_set;
+        let mut permission = MapPermission::U;
+        if prot & 1 == 1 {
+            permission |= MapPermission::R;
+        }
+        if prot & 2 == 2 {
+            permission |= MapPermission::W;
+        }
+        if prot & 4 == 4 {
+            permission |= MapPermission::X;
+        }
+        memory_set.insert_framed_area(start.into(), (start + len).into(), permission);
+        return len as isize;
+    }
+
+    pub fn munmap(&self, start: usize, len: usize) -> isize {
+        let current = self.inner.borrow().current_task;
+        let memory_set = &mut self.inner.borrow_mut().tasks[current].memory_set;
+        MapArea::new(
+            start.into(),
+            (start + len).into(),
+            MapType::Framed,
+            MapPermission::U,
+        )
+        .unmap(&mut memory_set.page_table);
+        return len as isize;
     }
 
     fn run_next_task(&self) {
