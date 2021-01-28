@@ -99,8 +99,7 @@ impl TaskManager {
         if prot & 4 == 4 {
             permission |= MapPermission::X;
         }
-        memory_set.insert_framed_area(start.into(), (start + len).into(), permission);
-        return len as isize;
+        return memory_set.insert_framed_area(start.into(), (start + len).into(), permission);
     }
 
     pub fn munmap(&self, start: usize, len: usize) -> isize {

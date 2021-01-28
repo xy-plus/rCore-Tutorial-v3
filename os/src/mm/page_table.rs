@@ -109,10 +109,13 @@ impl PageTable {
         result
     }
     #[allow(unused)]
-    pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
+    pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) -> bool {
         let pte = self.find_pte_create(vpn).unwrap();
-        assert!(!pte.is_valid(), "vpn {:?} is mapped before mapping", vpn);
+        if pte.is_valid() {
+            return false;
+        }
         *pte = PageTableEntry::new(ppn, flags | PTEFlags::V);
+        return true;
     }
     #[allow(unused)]
     pub fn unmap(&mut self, vpn: VirtPageNum) {
