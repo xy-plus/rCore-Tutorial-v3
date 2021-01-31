@@ -10,7 +10,7 @@ DISASM_TMP := target/$(TARGET)/$(MODE)/asm
 BOARD		?= qemu
 SBI			?= rustsbi
 BOOTLOADER	:= ../bootloader/$(SBI)-$(BOARD).bin
-SMP			?= 2
+SMP			?= 1
 
 # Run K210
 K210-SERIALPORT	= /dev/ttyUSB0
